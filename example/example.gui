@@ -268,7 +268,7 @@ nodes {
   type: TYPE_TEXT
   blend_mode: BLEND_MODE_ALPHA
   text: "X"
-  font: "kenpixel15"
+  font: "corova"
   id: "example/text_prefab"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
@@ -364,8 +364,8 @@ nodes {
 }
 nodes {
   position {
-    x: 400.0
-    y: 120.0
+    x: -5.0
+    y: -174.0
     z: 0.0
     w: 1.0
   }
@@ -396,7 +396,7 @@ nodes {
   type: TYPE_TEXT
   blend_mode: BLEND_MODE_ALPHA
   text: "TAP TO NEXT DIALOG"
-  font: "kenpixel15"
+  font: "corova"
   id: "example/next_dialog_text"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
@@ -417,7 +417,7 @@ nodes {
   line_break: false
   parent: "example/parent"
   layer: ""
-  inherit_alpha: true
+  inherit_alpha: false
   alpha: 1.0
   outline_alpha: 1.0
   shadow_alpha: 0.0
