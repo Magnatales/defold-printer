@@ -7,7 +7,9 @@ Support UTF-8 symbols (via utf-8.lua). So Russian and other 2+ bytes symbol lang
 # Install
 
 Add library to dependency:
-`https://github.com/Insality/defold-printer/archive/master.zip`
+`https://github.com/Magnatales/defold-printer/archive/master.zip`
+
+*WARNING* Added my github so I can use my version
 
 ![](docs/example.gif)
 
