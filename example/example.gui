@@ -3,6 +3,10 @@ fonts {
   name: "kenpixel15"
   font: "/example/corova.font"
 }
+textures {
+  name: "printer_atlas"
+  texture: "/example/printer_atlas.atlas"
+}
 background_color {
   x: 0.0
   y: 0.0
@@ -330,7 +334,7 @@ nodes {
   }
   type: TYPE_BOX
   blend_mode: BLEND_MODE_ALPHA
-  texture: ""
+  texture: "printer_atlas/char"
   id: "example/prefab_icon"
   xanchor: XANCHOR_NONE
   yanchor: YANCHOR_NONE
@@ -349,6 +353,7 @@ nodes {
   clipping_visible: true
   clipping_inverted: false
   alpha: 1.0
+  overridden_fields: 9
   template_node_child: true
   size_mode: SIZE_MODE_MANUAL
   custom_type: 0

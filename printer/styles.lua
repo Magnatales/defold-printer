@@ -18,14 +18,14 @@ return {
 		speed = 0.1,
 		appear = 0,
 		shake_on_write = 4,
-		sound = "shake_sound"
+		sound = "letter"
 	},
 
 	slow_appear = {
 		speed = 0.2,
 		appear = 0.2,
 		color = "#6499E9",
-		sound = "heavy_letter"
+		sound = "letter"
 	},
 
 	define_style = {

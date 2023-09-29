@@ -2,12 +2,43 @@ local printer = require "printer.printer"
 local styles = require("printer/styles")
 local constants = require("printer.constants")
 
+
+
+local texts = {
+	"Hello! This text is being handled by a printer!",
+	"You can print text with {hard}some style{/}",
+	"Or just {hard}mix{/} the {slow_appear}different{/} styles",
+	"Also, there are some advanced options:",
+	{"You can write text with pointed {define_style}source{/}, to change default text", "defold"},
+	"Or, you can define some words, that you want to print with a defined style",
+	"{image:char}You can put images {image:dog} in your text like this:{image:char}",
+	"And this {hard}final{/} text, to show you {n}{slow_appear}the {hard}power{/}{n} of printer!{n}Good Luck",
+}
+
+local function next_print(self)
+	local text = texts[self.index]
+	local source = nil
+	if type(text) == "table" then
+		text, source = text[1], text[2]
+	end
+	self.printer:print(text, source)
+end
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 	printer.add_styles_range(styles)
+	printer.play_sound = function(name)
+		sound.play("sounds#" .. name)
+	end
 
 	self.printer = printer.new(self, "example")
+	
+	self.index = 1
+	timer.delay(0.1, false, function()
+		next_print(self)
+	end)
 end
+
 
 function update(self, dt)
 	self.printer:update(dt)
@@ -34,5 +65,17 @@ function on_input(self, action_id, action)
 
 	if action_id == hash("key_e") then
 		self.printer:fadein()
+	end
+
+	if action_id == hash("touch") and action.pressed then
+		if self.printer.is_print then
+			self.printer:instant_appear()
+		else
+			self.index = self.index + 1
+			if self.index > #texts then
+				self.index = 1
+			end
+			next_print(self)
+		end
 	end
 end
