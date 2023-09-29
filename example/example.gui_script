@@ -5,7 +5,7 @@ local constants = require("printer.constants")
 
 
 local texts = {
-	"Hello! This text is being handled by a printer!",
+	"Hello! This text is being handled by a printer! Hello! This text is being handled by a printer!",
 	"You can print text with {hard}some style{/}",
 	"Or just {hard}mix{/} the {slow_appear}different{/} styles",
 	"Also, there are some advanced options:",
@@ -73,7 +73,8 @@ function on_input(self, action_id, action)
 		else
 			self.index = self.index + 1
 			if self.index > #texts then
-				self.index = 1
+				gui.set_enabled(gui.get_node("example/parent"), false)
+				return
 			end
 			next_print(self)
 		end

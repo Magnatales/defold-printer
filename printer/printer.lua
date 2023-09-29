@@ -490,6 +490,7 @@ function M.final(self) ---@type fun(self:Printer)
 	self.shake_time = -1
 end
 
+---@param name string
 function M.play_sound(name)
 	-- this function is called whenever a symbol is printed
 end
