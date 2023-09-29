@@ -1,76 +1,17 @@
 ---@diagnostic disable: param-type-mismatch, undefined-field
---[[
-	Defold Printer Module
-	Author: Insality
-
-	require "printer.printer"
-
-	node must contains prefab (text) and text_parent
-	pritner see on text_parent size to placing letters. See template in module folder
-
-	Usage:
-	self.printer = printer.new(self, template_name)
-
-	in update:
-		self.printer:update(dt)
-	if final
-		self.printer:final()
-
-	to write text:
-		self.printer:print("string {stylename}next string")
-		return true, if string will writing
-		return false, if prev. string is writing and instant complete them
-
-	to see if printer is print now:
-		self.printer.is_print
-
-	to instant complete current print manual:
-		self.printer:instant_appear()
-
-	New styles you can add with printer.add_styles({styles})
-
-	Print usage:
-	self.printer:print("This is {red}test with red style")
-	self.printer:print("This is {amazing}multi-{blue}styled text")
-	self.printer:print("This is text with{n}new line. And image here {image:coins}")
-	self.printer:print("This is {red}red text and {/}return to default")
-	self.printer:print("This is with source to use another default style", "Illidan")
-
-	Full documentation read at:
-	https://github.com/Insality/defold-printer/blob/master/README.md
---]]
 
 local colors = require("printer.colors")
 local utf8 = require("printer.utf8string")
 local custom_regex = require("printer.regex")
+local helpers = require("printer.helpers")
 
-local HASH_PRINT_DONE = hash("print_done")
+
 local COLOR_INVISIBLE = vmath.vector4(1, 1, 1, 0)
-
-local contains = function(t, value)
-	for i = 1, #t do
-		if t[i] == value then
-			return i
-		end
-	end
-	return false
-end
-
-local split = function(inputstr, sep)
-	sep = sep or "%s"
-	local t = {}
-	local i = 1
-	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-			t[i] = str
-			i = i + 1
-	end
-	return t
-end
 
 local M = {}
 M.printers = {}
 
-
+local HASH_PRINT_DONE = hash("print_done")
 local styles = {
 	default = {
 		font_height = 28,
@@ -86,25 +27,27 @@ local styles = {
 		shake_on_write = 0, -- when letter appear, shake dialogue screen
 	}
 }
-local word_styles = {}
-local source_styles = {}
+---@type Dictionary<Style>
+local word_styles_dic = {}
+---@type Dictionary<Style>
+local source_styles_dic = {}
 
 
 local temp_pos = vmath.vector3()
-local function update_shake(self, dt)
+local function update_shake(self, dt) ---@type fun(self:Printer, dt:number)
 	self.shake_time = self.shake_time - dt
 
 	if self.shake_time < 0 then
 		self.shake_power = 0
-		gui.set_position(self.node_parent, self.node_parent_pos)
+		gui.set_position(self.parent, self.parent_pos)
 	else
-		temp_pos.x = self.node_parent_pos.x + (math.random() * self.shake_power * 2 - self.shake_power)
-		temp_pos.y = self.node_parent_pos.y + (math.random() * self.shake_power * 2 - self.shake_power)
-		gui.set_position(self.node_parent, temp_pos)
+		temp_pos.x = self.parent_pos.x + (math.random() * self.shake_power * 2 - self.shake_power)
+		temp_pos.y = self.parent_pos.y + (math.random() * self.shake_power * 2 - self.shake_power)
+		gui.set_position(self.parent, temp_pos)
 	end
 end
 
-local function get_style(self, name)
+local function get_style(self, name) ---@type fun(self:Printer, name:string):Style
 	if name == "/" or name == "default" or name == nil then
 		if self.default_style == "default" then
 			self.last_style = styles.default
@@ -137,13 +80,13 @@ local function get_style(self, name)
 end
 
 
-local function set_shake(self, power, time)
+local function set_shake(self, power, time) ---@type fun(self:Printer, power:number, time:number)
 	self.shake_time = time
 	self.shake_power = power
 end
 
 
-local function get_letter_size(node_data)
+local function get_letter_size(node_data) ---@type fun(node_data:Node_data):vector3
 	local size
 	if node_data.is_icon then
 		size = gui.get_size(node_data.node)
@@ -159,7 +102,6 @@ local function get_letter_size(node_data)
 		size.width = size.max_ascent * 0.5
 		size.height = size.max_ascent * 0.5
 	end
-
 	size.width = size.width * scale.x
 	size.height = size.height * scale.y
 
@@ -167,7 +109,7 @@ local function get_letter_size(node_data)
 end
 
 
-local function get_word_size(word)
+local function get_word_size(word) ---@type fun(word: string):number
 	local result = 0
 	for i in pairs(word) do
 		local nodeData = word[i]
@@ -183,27 +125,27 @@ local function get_word_size(word)
 end
 
 
-local function check_new_line(self, word)
+local function check_new_line(self, word) ---@type fun(self:Printer, word: string)
 	local word_size = get_word_size(word)
 
 	if self.prev_node then
 		local last_pos = gui.get_position(self.prev_node.node)
-		if last_pos.x + word_size >= self.parent_size.x * 0.5 then
-			self.new_row = true
+		if last_pos.x + word_size >= self.text_parent_size.x * 0.5 then
+			self.is_new_row = true
 		end
 	else
-		self.new_row = false
+		self.is_new_row = false
 	end
 end
 
 
-local function update_letter_pos(self, node_data)
+local function update_letter_pos(self, node_data) ---@type fun(self:Printer, node_data:Node_data)
 	local is_new_row = false
-	local is_node_new_row = contains(self.new_line_nodes, node_data.node)
+	local is_node_new_row = helpers.contains(self.new_line_nodes, node_data.node)
 
-	if self.new_row or is_node_new_row then
+	if self.is_new_row or is_node_new_row then
 		is_new_row = true
-		self.new_row = false
+		self.is_new_row = false
 		self.current_row = self.current_row + 1
 	end
 
@@ -213,8 +155,8 @@ local function update_letter_pos(self, node_data)
 	if not self.prev_node or is_new_row then
 		-- first symbol
 		local row_index = (self.current_row-1)
-		pos.x = -self.parent_size.x * 0.5
-		pos.y = self.parent_size.y * 0.5 - (row_index * style.font_height) - style.font_height * 0.5
+		pos.x = -self.text_parent_size.x * 0.5
+		pos.y = self.text_parent_size.y * 0.5 - (row_index * style.font_height) - style.font_height * 0.5
 	else
 		local prev_pos = gui.get_position(self.prev_node.node)
 		local prev_size = get_letter_size(self.prev_node)
@@ -227,18 +169,18 @@ local function update_letter_pos(self, node_data)
 end
 
 
-local function set_word_pos(self, word)
+local function set_word_pos(self, word) ---@type fun(self:Printer, word: string)
 	for i in pairs(word) do
 		update_letter_pos(self, word[i])
 	end
 end
 
 
-local function get_symbol(self, text, stylename)
+local function get_symbol(self, text, stylename) ---@type fun(self:Printer, text: string, stylename: string):Node_data
 	local is_icon = false
 	local node
 
-	local splited = split(stylename, ":")
+	local splited = helpers.split(stylename, ":")
 	if #splited == 2 and splited[1] == "image" then
 		-- icon create
 		is_icon = true
@@ -251,7 +193,7 @@ local function get_symbol(self, text, stylename)
 	end
 	local node_data = {node = node, style = get_style(self, stylename), text = text, is_icon = is_icon}
 	gui.set_enabled(node, true)
-	gui.set_parent(node, self.node_parent)
+	gui.set_parent(node, self.text_node_parent)
 	gui.set_color(node, COLOR_INVISIBLE)
 	table.insert(self.current_letters, node_data)
 
@@ -259,7 +201,7 @@ local function get_symbol(self, text, stylename)
 end
 
 
-local function create_symbol(self, text, stylename)
+local function create_symbol(self, text, stylename) ---@type fun(self:Printer, text: string, stylename: string):Node_data
 	local node_data = get_symbol(self, text, stylename)
 
 	local node = node_data.node
@@ -279,7 +221,7 @@ local function create_symbol(self, text, stylename)
 end
 
 
-local function clear_prev_text(self)
+local function clear_prev_text(self) ---@type fun(self:Printer)
 	if self.current_letters then
 		for i = 1, #self.current_letters do
 			gui.delete_node(self.current_letters[i].node)
@@ -287,20 +229,21 @@ local function clear_prev_text(self)
 	end
 	self.current_letters = {}
 	self.last_pos = false
-	self.current_words = {{}}
+	self.current_words = {}
+	table.insert(self.current_words, {})
 	self.new_line_nodes = {}
 end
 
 
-local function modify_text(text)
-	for k, v in pairs(word_styles) do
+local function modify_text(text) ---@type fun(text: string):string
+	for k, v in pairs(word_styles_dic) do
 		text = custom_regex.replace_all_with_style(text, k, v)
 	end
 	return text
 end
 
 
-local function precreate_text(self)
+local function precreate_text(self) ---@type fun(self:Printer)
 	while #self.string > 0 do
 		local uobj = utf8(self.string)
 		local sym = tostring(uobj:sub(1, 1))
@@ -337,7 +280,7 @@ local function precreate_text(self)
 end
 
 
-local function update_text_pos(self)
+local function update_text_pos(self) ---@type fun(self:Printer)
 	for i in pairs(self.current_words) do
 		local word = self.current_words[i]
 
@@ -347,7 +290,7 @@ local function update_text_pos(self)
 end
 
 
-local function appear_node(self, node_data, is_instant)
+local function appear_node(self, node_data, is_instant) ---@type fun(self:Printer, node_data:Node_data, is_instant: boolean)
 	local style = node_data.style
 	local node = node_data.node
 
@@ -395,7 +338,7 @@ local function appear_node(self, node_data, is_instant)
 end
 
 
-local function print_next(self)
+local function print_next(self) ---@type fun(self:Printer)
 	local node_data = self.current_letters[self.current_index]
 
 	appear_node(self, node_data)
@@ -420,7 +363,7 @@ local function print_next(self)
 end
 
 
-local function appear_text(self)
+local function appear_text(self) ---@type fun(self:Printer)
 	self.current_index = 1
 	if #self.current_letters > 0 then
 		self.is_print = true
@@ -428,17 +371,17 @@ local function appear_text(self)
 	end
 end
 
-
-local function init(self, node)
-	self.prefab = gui.get_node(node .. "/prefab")
+local function init(self, node) ---@type fun(self:Printer, node:userdata)
+	self.parent = gui.get_node(node .. "/parent")
+	self.prefab = gui.get_node(node .. "/text_prefab")
 	self.prefab_icon = gui.get_node(node .. "/prefab_icon")
-	self.node_parent = gui.get_node(node .. "/text_parent")
+	self.text_node_parent = gui.get_node(node .. "/text_parent")
 	self.shake_time = 0
 	self.shake_power = 0
 	self.write_timer = 0
 
-	self.node_parent_pos = gui.get_position(self.node_parent)
-	self.parent_size = gui.get_size(self.node_parent)
+	self.parent_pos = gui.get_position(self.parent)
+	self.text_parent_size = gui.get_size(self.text_node_parent)
 
 	gui.set_enabled(self.prefab, false)
 	gui.set_enabled(self.prefab_icon, false)
@@ -448,6 +391,7 @@ end
 
 --== PUBLIC FUNCTIONS ==--
 
+---@param self Printer
 function M.fadeout(self)
 	self.is_print = false
 	for i = 1, #self.current_letters do
@@ -456,7 +400,18 @@ function M.fadeout(self)
 	end
 end
 
+---@param self Printer
+function M.fadein(self)
+	self.is_print = true
+	if #self.current_letters > self.current_index then
+        for i = 1, self.current_index do
+            local node = self.current_letters[i].node
+            gui.animate(node, 'color.w', 1, gui.EASING_LINEAR, 0.3)
+		end
+    end
+end
 
+---@param self Printer
 function M.instant_appear(self)
 	local current_letter = self.current_letters[self.current_index]
 
@@ -468,18 +423,19 @@ function M.instant_appear(self)
 	end
 end
 
-
+---@param self Printer
+---@param str string
+---@param source string
 function M.print(self, str, source)
-	self.node_parent_pos = gui.get_position(self.node_parent)
-	self.parent_size = gui.get_size(self.node_parent)
+	self.parent_pos = gui.get_position(self.parent)
+	self.text_parent_size = gui.get_size(self.text_node_parent)
 
 	if self.is_print then
 		self:instant_appear()
 		return false
 	else
 		self.current_row = 1
-		self.new_row = false
-		self.stylename = source_styles[source] or "default"
+		self.stylename = source_styles_dic[source] or "default"
 		self.default_style = self.stylename
 		self.last_style = styles[self.default_style]
 		self.prev_node = false
@@ -495,7 +451,8 @@ function M.print(self, str, source)
 	end
 end
 
-
+---@param self Printer
+---@param template_name string
 function M.new(self, template_name)
 	local printer = setmetatable({}, {__index = M})
 	printer.parent = self
@@ -503,15 +460,16 @@ function M.new(self, template_name)
 	return printer
 end
 
-
+---@param self Printer
 function M.clear(self)
 	clear_prev_text(self)
 end
 
-
-function M.update(self, dt)
-	self.node_parent_pos = gui.get_position(self.node_parent)
-	self.parent_size = gui.get_size(self.node_parent)
+---@param self Printer
+---@param dt number	
+function M.update(self, dt) ---@type fun(self:Printer, dt:number)
+	--self.parent_pos = gui.get_position(self.text_node_parent) really needed?
+	self.text_parent_size = gui.get_size(self.parent)
 
 	if self.is_print then
 		self.write_timer = self.write_timer - dt
@@ -525,33 +483,36 @@ function M.update(self, dt)
 	end
 end
 
-
-function M.final(self)
+---@param self Printer
+function M.final(self) ---@type fun(self:Printer)
 	clear_prev_text(self)
 	self.is_print = false
 	self.shake_time = -1
 end
 
-
+---@param name string
 function M.play_sound(name)
 	-- this function is called whenever a symbol is printed
+	--print(name)
 end
 
-
-function M.add_styles(styles_new)
-	for k, v in pairs(styles_new) do
+---@param styles_new_dic Dictionary<Style>
+function M.add_styles_range(styles_new_dic)
+	for k, v in pairs(styles_new_dic) do
 		styles[k] = v
 	end
 end
 
-
+---@param source string
+---@param style Style
 function M.add_source_style(source, style)
-	source_styles[source] = style
+	source_styles_dic[source] = style
 end
 
-
-function M.add_word_style(word, style)
-	word_styles[word] = style
+---@param word string
+---@param style Style
+function M.add_word_style(word, style) ---@type fun(word:string, style:Style)
+	word_styles_dic[word] = style
 end
 
 

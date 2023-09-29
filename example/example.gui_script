@@ -1,0 +1,38 @@
+local printer = require "printer.printer"
+local styles = require("printer/styles")
+local constants = require("printer.constants")
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	printer.add_styles_range(styles)
+
+	self.printer = printer.new(self, "example")
+end
+
+function update(self, dt)
+	self.printer:update(dt)
+end
+
+function final(self)
+	self.printer:final()
+end
+
+function on_message(self, message_id, message)
+	if message_id == constants.PRINT_HASH then
+		self.printer:print(message.text)
+	end
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("key_space") then
+		self.printer:instant_appear()
+	end
+
+	if action_id == hash("key_a") then
+		self.printer:fadeout()
+	end
+
+	if action_id == hash("key_e") then
+		self.printer:fadein()
+	end
+end
